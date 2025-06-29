@@ -1,0 +1,60 @@
+name: CD-Deploy
+
+on:
+  workflow_run:
+    workflows: [ CI-Build ]
+    types: [ completed ]
+
+permissions:
+  contents: write   # create PR
+  pull-requests: write
+
+jobs:
+  promote-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0         # needed for PR base calculations
+
+      - name: Download image tag artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+          path: ./artifacts
+
+      - name: Update staging values
+        id: bump
+        run: |
+          TAG=$(cat artifacts/image-tag.txt)
+          yq e -i '.image.tag = strenv(TAG)' clusters/staging/values/webapp-values.yaml
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Commit & push
+        run: |
+          git config --global user.email "bot@github.com"
+          git config --global user.name  "CI Bot"
+          git switch -c release/$TAG
+          git add clusters/staging/values/webapp-values.yaml
+          git commit -m "chore: bump webapp to $TAG [skip ci]"
+          git push -u origin HEAD
+
+      - name: Open PR to main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: release/${{ steps.bump.outputs.tag }}
+          title: "chore: Deploy ${{ steps.bump.outputs.tag }} to staging"
+          body: "Automated image tag bump; Argo CD will sync on merge."
+          draft: false
+
+  # Optional manual promotion after staging verified ------------------------
+  promote-prod:
+    needs: promote-staging
+    runs-on: ubuntu-latest
+    environment: prod          # GitHub Environments ➜ manual approval gate
+    steps:
+      - name: Update prod values (same steps as above editing prod values)
+        run: echo "See staging job for script; duplicate with prod path"

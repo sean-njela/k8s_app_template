@@ -1,0 +1,63 @@
+name: Terraform-Infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment to apply (staging|prod)"
+        required: true
+        default: staging
+
+permissions:
+  contents: read
+  id-token: write   # for Workload Identity Federation login to GCP
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: true
+      GOOGLE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+      GOOGLE_REGION: europe-central2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google Cloud via OIDC
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_TF_SA }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Select env dir
+        id: vars
+        run: |
+          echo "dir=infra/envs/${{ github.event.inputs.env }}" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform init & plan
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          cd ${{ steps.vars.outputs.dir }}
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan
+
+      - name: Post plan as PR comment (if any)
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: ${{ steps.vars.outputs.dir }}/plan.out
+
+      - name: Terraform apply (prod requires manual approval)
+        if: github.event.inputs.env == 'staging' || github.ref == 'refs/heads/main'
+        env:
+          TF_VAR_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          cd ${{ steps.vars.outputs.dir }}
+          terraform apply -auto-approve tfplan
