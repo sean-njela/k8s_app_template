@@ -1,0 +1,99 @@
+version: '3'
+
+vars:
+  IMAGE_TAG: '{{.IMAGE_TAG | default "$(git rev-parse --short HEAD)"}}'
+  REGISTRY: 'ghcr.io/{{.GITHUB_USER | default "$(git config --get user.name | tr " " "-")"}}'
+
+# -----------------------------------------------------------
+# TASK DEFINITIONS
+# -----------------------------------------------------------
+
+tasks:
+  # ───────────────────────── Dev Experience ──────────────────────────
+  k3s:init:
+    desc: "Create local k3d cluster (k3s-dev)"
+    cmds:
+      - chmod +x scripts/k3s-init.sh
+      - ./scripts/k3s-init.sh
+
+  dev:up:
+    desc: "Start live-reload dev loop with Tilt"
+    deps: [ k3s:init ] 
+    cmds:
+      - tilt up
+
+  dev:down:
+    desc: "Stop Tilt & delete k3d cluster"
+    cmds:
+      - tilt down || true
+      - k3d cluster delete k3s-dev || true
+
+  # ────────────────────────── Build & Scan ───────────────────────────
+  build:image:
+    desc: "Build multi-arch Docker image & push (local override)"
+    cmds:
+      - docker buildx build --platform linux/amd64,linux/arm64 \
+          -t {{.REGISTRY}}/webapp:{{.IMAGE_TAG}} \
+          --push .
+
+  scan:trivy:
+    desc: "CVE scan the built image"
+    cmds:
+      - trivy image --severity CRITICAL,HIGH {{.REGISTRY}}/webapp:{{.IMAGE_TAG}}
+
+  # ─────────────────────────── Deployments ───────────────────────────
+  deploy:staging:
+    desc: "Deploy current IMAGE_TAG to staging via helmfile"
+    cmds:
+      - IMAGE_TAG={{.IMAGE_TAG}} scripts/deploy.sh staging
+
+  deploy:prod:
+    desc: "Deploy current IMAGE_TAG to prod via helmfile (requires approval)"
+    cmds:
+      - IMAGE_TAG={{.IMAGE_TAG}} scripts/deploy.sh prod
+
+  rollback:prod:
+    desc: "Rollback prod to a given tag (TAG=sha)"
+    cmds:
+      - |
+        if [ -z "$TAG" ]; then echo "⛔  Provide TAG env var"; exit 1; fi
+      - IMAGE_TAG=$TAG scripts/deploy.sh prod
+
+  # ────────────────────────── Cluster Bootstrap ──────────────────────
+  bootstrap:cluster:
+    desc: "Install Argo CD & app-of-apps to the current kube-context"
+    cmds:
+      - chmod +x scripts/bootstrap.sh
+      - ./scripts/bootstrap.sh
+
+  # ─────────────────────────── Terraform ─────────────────────────────
+  tf:plan:
+    desc: "Terraform plan for given env (ENV=staging|prod)"
+    cmds:
+      - |
+        if [ -z "$ENV" ]; then echo "⛔  ENV var required"; exit 1; fi
+      - cd infra/envs/$ENV && terraform init -input=false && terraform plan -input=false
+
+  tf:apply:
+    desc: "Terraform apply for given env (ENV=staging|prod)"
+    cmds:
+      - |
+        if [ -z "$ENV" ]; then echo "⛔  ENV var required"; exit 1; fi
+      - cd infra/envs/$ENV && terraform apply -auto-approve
+
+  # ─────────────────────────── Linting ───────────────────────────────
+  lint:yaml:
+    desc: "Lint YAML files (yamllint)"
+    cmds:
+      - yamllint -c .yamllint.yml .
+
+  lint:helm:
+    desc: "Lint Helm charts"
+    cmds:
+      - helm lint charts/webapp-template
+
+  # Default task ------------------------------------------------------
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task -l

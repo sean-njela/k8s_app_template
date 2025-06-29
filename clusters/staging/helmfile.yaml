@@ -1,0 +1,43 @@
+# clusters/staging/helmfile.yaml
+# -----------------------------------------------------------------------------
+# Deploys core applications into the *staging* GKE Autopilot cluster.
+# Run with:
+#   export KUBECONFIG=$HOME/.kube/config-staging  # or gcloud get‑credentials
+#   helmfile sync
+# -----------------------------------------------------------------------------
+
+###################################
+# Global settings
+###################################
+helmDefaults:
+  wait: true         # block until resources are Ready
+  timeout: 600       # seconds
+  atomic: true       # rollback on failure
+  skipDeps: false
+
+repositories:
+  - name: platform-local
+    url: "file://../../charts"   # uses your Git checkout
+
+###################################
+# Releases
+###################################
+releases:
+  # --- Web application -------------------------------------------------------
+  - name: webapp
+    namespace: default
+    chart: platform-local/webapp-template
+    version: 0.1.0      # keep in lock‑step with Chart.yaml
+    values:
+      - values/webapp-values.yaml   # staging overrides
+      # Inject the CI‑driven image tag: export IMAGE_TAG=$GITHUB_SHA
+      - image:
+          tag: "{{ env \"IMAGE_TAG\" | default \"1.0.0\" }}"
+    labels:
+      app.kubernetes.io/part-of: webapp
+      env: staging
+
+  # Add additional micro‑services below --------------------------------------
+  # - name: payment
+  #   chart: platform-local/webapp-template
+  #   values: [values/payment.yaml]

@@ -416,3 +416,72 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+
+# ─────────────────────────────
+# Terraform
+# ─────────────────────────────
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+.terraform/
+*.tfplan
+*.tfvars
+override.tf
+override.tf.json
+*.auto.tfvars
+
+# ─────────────────────────────
+# Helm / Helmfile
+# ─────────────────────────────
+.helm/
+.helm/plugins/
+.helmfile/
+*.helmfile.lock
+charts/*/charts/
+charts/*/tmpcharts/
+
+# ─────────────────────────────
+# Kubernetes tooling caches
+# ─────────────────────────────
+.tilt-cache/
+skaffold.log
+
+# k3d / k3s local cluster data
+k3d-*/volumes/
+
+# ─────────────────────────────
+# Devbox & Mise
+# ─────────────────────────────
+.devbox/
+devbox.lock
+.mise/plugins/
+
+# ─────────────────────────────
+# Python virtual-envs
+# ─────────────────────────────
+.venv/
+venv/
+
+# ─────────────────────────────
+# Go build output
+# ─────────────────────────────
+**/bin/
+**/dist/
+*.test
+
+# ─────────────────────────────
+# Node package managers
+# ─────────────────────────────
+.pnpm/
+pnpm-lock.yaml
+
+# ─────────────────────────────
+# Misc generated artefacts
+# ─────────────────────────────
+*.tfplan.binary
+*.coverage/
+coverage/
+.idea/
+.DS_Store

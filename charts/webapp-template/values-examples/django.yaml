@@ -1,0 +1,20 @@
+image:
+  repository: ghcr.io/<YOUR_GH_ORG>/django-demo
+  tag: "4ca1e39"  # Git SHA
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 200m
+  limits:
+    memory: 512Mi
+    cpu: 1
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http

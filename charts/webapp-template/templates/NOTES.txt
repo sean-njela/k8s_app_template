@@ -1,0 +1,6 @@
+1. Get the application URL:
+   1.1 If using Traefik Ingress:
+     http(s)://<HOST>
+
+2. Test endpoints:
+   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "webapp-chart-name" . }} -- curl -s http://localhost:8080/healthz

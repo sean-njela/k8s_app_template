@@ -1,0 +1,32 @@
+{
+    "packages": [
+      "terraform@latest",
+      "kubectl@latest",
+      "google-cloud-sdk@latest",
+      "helm@latest",
+      "helmfile@latest",
+      "kustomize@latest",
+      "k3d@latest",
+      "tilt@latest",
+      "docker@latest",
+      "docker-buildx@latest",
+  
+      "trivy@latest",
+      "cosign@latest",
+      "opa@latest",
+      "falco@latest",
+  
+      "yq@latest",
+      "jq@latest",
+      "yamllint@latest",
+      "task@latest",
+      "git@latest",
+      "gh@latest"
+    ],
+    "shell": {
+      "init_hook": [
+        "docker buildx create --use --name devbox || true",
+        "echo '🟢 Devbox environment initialised.'"
+      ]
+    }
+  }

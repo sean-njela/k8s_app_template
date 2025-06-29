@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: argocd
+spec:
+  description: >-
+    Baseline project for platform add‑ons. Locks destination to the same cluster
+    and allows only vetted Helm chart sources.
+
+  # ✂️ 1) Where apps may *deploy*
+  destinations:
+    - namespace: '*'
+      server: 'https://kubernetes.default.svc'
+
+  # ✂️ 2) Which *repositories* can be referenced
+  sourceRepos:
+    - 'https://github.com/<YOUR_GH_ORG>/k8s-platform.git'
+    - 'https://charts.jetstack.io'            # cert‑manager
+    - 'https://traefik.github.io/charts'       # traefik
+    - 'https://helm.linkerd.io/stable'         # linkerd
+    - 'https://grafana.github.io/helm-charts'  # loki, alloy, grafana
+    - 'https://open-policy-agent.github.io/gatekeeper/charts'
+    - 'https://falcosecurity.github.io/charts'
+
+  # ✂️ 3) RBAC for Argo CD UI (read‑only by default)
+  roles:
+    - name: read-only
+      description: Read‑only access for SSO users.
+      policies:
+        - p, proj:default:read-only, applications, get, default/*, allow

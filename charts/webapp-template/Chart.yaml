@@ -1,0 +1,19 @@
+apiVersion: v2
+name: webapp-template
+version: 0.1.0   # bump with semver
+appVersion: "1.0.0"  # overridden by CI to Git SHA
+kubeVersion: ">= 1.27.0-0"
+description: |
+  A battle‑tested Helm chart for stateless web applications. Supports autoscaling,
+  Traefik ingress, Linkerd sidecars, ExternalSecrets, and more—out of the box.
+keywords:
+  - web
+  - deployment
+  - kubernetes
+  - helm
+maintainers:
+  - name: Solo Dev
+    email: you@example.com
+sources:
+  - https://github.com/<YOUR_GH_ORG>/k8s-platform
+icon: https://raw.githubusercontent.com/kubernetes/kubernetes/master/logo/logo.png

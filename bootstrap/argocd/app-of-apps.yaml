@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-root
+  namespace: argocd              # Argo CD installs itself here
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=true
+spec:
+  destination:
+    name: ''                     # In‑cluster
+    namespace: argocd
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    repoURL: 'https://github.com/<YOUR_GH_ORG>/k8s-platform.git'
+    targetRevision: main
+    path: bootstrap/argocd/applications  # children live here
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: traefik
+  source:
+    repoURL: https://traefik.github.io/charts
+    chart: traefik
+    targetRevision: 27.0.0   # Traefik 3.4.x ≈ chart 27
+    helm:
+      values: |
+        ports:
+          websecure:
+            tls:
+              enabled: true
+        ingressRoute:
+          dashboard:
+            enabled: false  # Hide the dashboard behind auth later
+        certificatesResolvers:
+          letsencrypt:
+            email: you@example.com
+            httpChallenge:
+              enabled: true
+              entryPoint: web
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

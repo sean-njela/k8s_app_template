@@ -1,0 +1,32 @@
+# clusters/prod/values/webapp-values.yaml
+
+# 👑 Prod hostname
+ingress:
+  enabled: true
+  hosts:
+    - host: webapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: webapp-tls
+      hosts: [webapp.example.com]
+
+# 🚀 Heavier baseline resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Secrets path
+externalSecret:
+  secretKey: "WEBAPP_PROD"
+
+# Scale more aggressively
+autoscaling:
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 60

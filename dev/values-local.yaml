@@ -1,0 +1,30 @@
+# dev/values-local.yaml
+# Overrides to make the chart work on a laptop.
+
+image:
+  repository: webapp              # uses local Docker daemon image
+  tag: "dev"
+  pullPolicy: Never               # don’t go to registry
+
+ingress:
+  enabled: false                  # use port‑forward instead
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+externalSecret:
+  enabled: false                  # pull .env locally via Infisical CLI instead
+
+pdb:
+  enabled: false                  # not needed on single‑node dev

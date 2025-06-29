@@ -1,0 +1,29 @@
+# dev/Tiltfile
+# -----------------------------------------------------------------------------
+# Quick start:
+#   1) ./scripts/k3s-init.sh        # spin up k3d cluster (or your own KUBECONFIG)
+#   2) tilt up                      # live‑reload webapp on file changes
+#
+# k3d/k3s is assumed running with context "k3s-dev".
+# -----------------------------------------------------------------------------
+
+docker_build( # Build webapp image
+    'webapp', '.',
+    dockerfile='Dockerfile',
+    live_update=[
+        sync('.', '/app'),
+        run('npm install', trigger=['package.json', 'package-lock.json']),
+        run('npm run build'),
+    ],
+    tag='dev',
+)
+
+# Use local image without pushing to registry
+k8s_yaml(local('helm template webapp ./charts/webapp-template '
+              '--namespace default '
+              '-f dev/values-local.yaml '
+              '--set image.tag=dev'))
+
+k8s_resource('webapp', port_forwards=8080)
+
+default_registry('')  # disable image rewrite

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linkerd
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: linkerd
+  source:
+    repoURL: https://helm.linkerd.io/stable
+    chart: linkerd2
+    targetRevision: 2.18.1
+    helm:
+      values: |
+        proxyInit:
+          privileged: true  # needed on GKE Autopilot for NET_ADMIN
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

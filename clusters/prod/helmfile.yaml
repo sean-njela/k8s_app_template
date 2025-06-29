@@ -1,0 +1,38 @@
+# clusters/prod/helmfile.yaml
+# -----------------------------------------------------------------------------
+# Production releases.  Use the prod cluster context before running helmfile.
+#   export KUBECONFIG=$HOME/.kube/config-prod
+#   helmfile sync --environment prod
+# -----------------------------------------------------------------------------
+
+helmDefaults:
+  wait: true
+  timeout: 900
+  atomic: true
+
+repositories:
+  - name: platform-local
+    url: "file://../../charts"
+
+releases:
+  - name: webapp
+    namespace: default
+    chart: platform-local/webapp-template
+    version: 0.1.0
+    values:
+      - values/webapp-values.yaml
+      - image:
+          tag: "{{ env \"IMAGE_TAG\" | required \"IMAGE_TAG env var is required\" }}"
+    labels:
+      app.kubernetes.io/part-of: webapp
+      env: prod
+
+    # Promote only *signed* images in prod via a simple verification hook
+    hooks:
+      - events: [ presync ]
+        showlogs: true
+        command: bash
+        args:
+          - -c
+          - >-
+            cosign verify --key cosign.pub ghcr.io/<YOUR_GH_ORG>/<APP_NAME>:{{ .Values.image.tag }}
