@@ -121,6 +121,113 @@ graph TD
 
 Detailed runbooks live under **`docs/runbooks/`**.
 
+
+---
+## For Self Hosting Open Source Software 
+
+### Short answer
+
+**The stack is already well-suited for self-hosting open-source applications** (think Nextcloud, Gitea, Plausible, Mastodon, etc.). Nothing fundamental must change; you mainly decide ***how*** you bring each app in:
+
+1. **Use their official Helm chart**
+   *Most OSS projects expose one.*
+
+   * Add a new `bootstrap/argocd/applications/<app>.yaml` that points to the public chart repo and version you want.
+   * Keep it in the same *addons* AppProject, or create a separate AppProject if you want tighter RBAC.
+
+2. **Wrap the upstream container in your `webapp-template` chart**
+   *Great when the project ships only raw images or docker-compose.*
+
+   * Drop the image/tag into `clusters/*/values/<app>-values.yaml`.
+   * Use your own `Ingress`, `HPA`, `ExternalSecret` blocks instead of whatever their compose file suggests.
+
+3. **Fork & harden**
+
+   * Build the image yourself via the **`build.yml`** pipeline (so Trivy & Cosign sign/scan it).
+   * Swap to `REGISTRY=ghcr.io/<you>` in the app values.
+
+---
+
+### What to keep in mind
+
+| Area                     | Tips for self-hosting OSS apps                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Licensing**            | Some AGPL apps require that you publish *your* source if you modify them. Keep a LICENSE or NOTICE file in the repo when needed.                              |
+| **Container provenance** | Prefer building your own image in CI → you get SBOM and Cosign signature automatically.                                                                       |
+| **Secrets**              | Many community charts still use plain `values.yaml` for passwords. Route those through **Infisical** + `ExternalSecret` so they stay out of Git.              |
+| **Storage**              | A lot of self-hosted tools need PVCs (Nextcloud, databases). GKE Autopilot supports RWX Filestore CSI; add a `storageClassName` override in the app’s values. |
+| **Ingress**              | Your Traefik chart already handles Let’s Encrypt. Map each app’s sub-domain in its values file (staging & prod).                                              |
+| **Resource limits**      | Open-source images often have none. Set reasonable requests/limits in their per-env values to avoid OOMs.                                                     |
+| **Back-ups**             | Velero is in your addons list—make sure to add each PersistentVolumeClaim to the Velero schedule (label selector).                                            |
+| **Upgrade cadence**      | Pin explicit chart/image versions in every `Application`; renovate-bot or Dependabot can later bump them via PRs.                                             |
+
+---
+
+### Example: adding Gitea (lightweight Git server)
+
+1. **Add repo to allowed list**
+
+```yaml
+# bootstrap/argocd/projects/default.yaml
+spec:
+  sourceRepos:
+    - https://dl.gitea.io/charts/
+```
+
+2. **Create the Argo CD Application**
+
+```yaml
+# bootstrap/argocd/applications/gitea.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitea
+  source:
+    repoURL: https://dl.gitea.io/charts/
+    chart: gitea
+    targetRevision: 10.2.3
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          hosts:
+            - host: git.example.com
+              paths: ["/"]
+        postgresql:
+          enabled: false              # use CloudSQL or AlloyDB
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+```
+
+3. **Commit → Argo CD syncs**.
+   The app rides on the same observability, TLS, autoscaling, and backup tooling you already have.
+
+---
+
+### Bottom-line
+
+*Your platform already covers the heavy lifting — CI scanning, GitOps deployment, TLS, secrets, backups, autoscaling.*
+Self-hosting an open-source project is now just:
+
+```bash
+# 1. Add or wrap a Helm chart
+git add bootstrap/argocd/applications/<app>.yaml
+git commit -m "feat: self-host <app>"
+git push
+# 2. Watch Argo CD turn it green 🚦
+```
+
+If you run into a specific OSS app that doesn’t “just drop in,” let us know and we can adapt the template.
+
 ---
 
 ## 🙋 FAQ
